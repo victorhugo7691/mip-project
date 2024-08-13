@@ -83,6 +83,8 @@ binary = {
 text = {"strings_allowed": "*", "number_allowed": False}
 # endregion
 
+import pandas as pd
+
 # region INPUT SCHEMA
 input_schema = PanDatFactory(
     parameters=[['Name'], ['Value']],  # Do not change the column names of the parameters table!
