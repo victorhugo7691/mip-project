@@ -51,6 +51,15 @@ class OptModel:
         self._add_base_constraints()
         self._build_objective()
 
+        # Variável de decisão para monitorar o número de tipos de itens diferentes recebidos por semana
+        self._add_received_items_variables()
+
+        # Restrição de limite de recebimento
+        self._add_received_items_limit_constraint()
+
+        # Penalidade no objetivo
+        self._add_penalty_to_objective()
+
     def _add_decision_variables(self) -> None:
         """Add the decision variables."""
         mdl, dat_in = self.mdl, self.dat_in
@@ -171,6 +180,64 @@ class OptModel:
         self.purchase_cost = plp.lpSum(pc[i, t] * x[i, t] for i, t in x)
         self.total_cost = self.purchase_cost + self.inventory_cost + self.inventory_cost_s
         mdl.setObjective(self.total_cost)
+
+    def _add_received_items_variables(self) -> None:
+        """Variáveis de decisão para monitorar o número de tipos de itens diferentes recebidos por semana"""
+        mdl, dat_in = self.mdl, self.dat_in
+        T = dat_in.T
+        num_items_received = plp.LpVariable.dicts('num_items_received', T, lowBound=0, upBound=30, cat=plp.LpInteger)
+        self.vars['num_items_received'] = num_items_received
+
+    def _add_received_items_limit_constraint(self) -> None:
+        """Restrição que impõe um limite de 30 tipos de itens recebidos por semana"""
+        mdl, dat_in = self.mdl, self.dat_in
+        T = dat_in.T
+        num_items_received = self.vars['num_items_received']
+
+        for t in T:
+            mdl.addConstraint(num_items_received[t] <= 30, name=f'ReceivedItemsLimit_{t}')
+
+    def _add_penalty_to_objective(self) -> None:
+        """Penalidade no objetivo caso mais de 4 itens diferentes sejam recebidos"""
+        mdl, dat_in = self.mdl, self.dat_in
+        penalty_cost = plp.LpVariable('penalty_cost', lowBound=0, cat=plp.LpContinuous)
+        self.vars['penalty_cost'] = penalty_cost
+
+        # Adicionar a penalidade no custo total
+        mdl.setObjective(self.total_cost + penalty_cost)
+
+        # Adicionar a restrição para ativar a penalidade caso mais de 4 itens diferentes sejam recebidos
+        num_items_received = self.vars['num_items_received']
+        mdl.addConstraint(penalty_cost >= 10000 * (plp.lpSum(num_items_received[t] for t in num_items_received) - 4), name='PenaltyConstraint')
+    
+    def add_complexity4(self) -> None:
+        mdl, dat_in = self.mdl, self.dat_in
+        T = dat_in.T
+        num_items_received = plp.LpVariable.dicts('num_items_received', T, lowBound=0, upBound=30, cat=plp.LpInteger)
+        penalty_cost = plp.LpVariable.dicts('penalty_cost', T, lowBound=0, cat=plp.LpContinuous)
+    
+        excess_items = plp.LpVariable.dicts('excess_items', T, lowBound=0, cat=plp.LpInteger)
+
+        self.vars['num_items_received'] = num_items_received
+        self.vars['penalty_cost'] = penalty_cost
+        self.vars['excess_items'] = excess_items
+
+    # Restrições para limitar o número de itens recebidos por semana
+        for t in T:
+            print(f"Adicionando restrições para t={t}")
+            mdl.addConstraint(num_items_received[t] <= 30, name=f'Limite_de_itens_recebidos_{t}')
+        
+        # Relacionar num_items_received ao número de tipos de itens efetivamente recebidos
+            mdl.addConstraint(num_items_received[t] == plp.lpSum(self.vars['z'][i, t] for i in dat_in.I), name=f'Numero_de_itens_recebidos_{t}')
+        
+        # Definir excess_items como o excesso de itens recebidos além de 4
+            mdl.addConstraint(excess_items[t] >= num_items_received[t] - 4, name=f'Itens_excedentes_{t}')
+        
+        # Definir penalidade baseada nos itens excedentes
+            mdl.addConstraint(penalty_cost[t] == 10000 * excess_items[t], name=f'Penalidade_para_a_complexidade_4_{t}')
+    
+    # Atualizar a função objetivo para incluir a penalidade
+        mdl.setObjective(self.total_cost + plp.lpSum(penalty_cost[t] for t in T))
 
     def add_complexity_8(self) -> None:
         """

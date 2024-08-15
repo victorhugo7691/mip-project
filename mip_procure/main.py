@@ -16,6 +16,7 @@ def solve(dat: input_schema.PanDat) -> output_schema.PanDat:
     # opt_model.add_complexity_6()
     # opt_model.add_complexity_7()
     # opt_model.add_complexity_8()
+    opt_model.add_complexity4()
     opt_model.optimize()
     # opt_model.mdl.write('lp.lp')
     dat_out = DatOut(opt_model)
